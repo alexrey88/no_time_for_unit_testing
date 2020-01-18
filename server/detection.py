@@ -2,6 +2,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
+import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 import matplotlib.pyplot as plt
@@ -9,83 +10,129 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.models as models
+from PIL import Image
 
 DATA_PATH = "./dataset"
+NUM_LABELS = 3
 
-# Define convolutional neural network
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-def main():
-    # Loading and normalizing dataset
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-    data = ImageFolder(root=DATA_PATH, transform=transform)
+def train_model():
+    transformations = transforms.Compose([transforms.Resize(255),
+        transforms.CenterCrop(224), 
+        transforms.ToTensor(), # transform image in tensor object (separate R, G and B)
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    data = ImageFolder(root=DATA_PATH, transform=transformations)
     print(data.classes)
 
     # Get train set and test set
     data_length = len(data)  # total number of examples
-    test_length = int(0.3 * data_length)  # take ~ 30% for test
+    test_length = int(0.4 * data_length)  # take ~ 30% for test
     test_set = torch.utils.data.Subset(data, range(test_length))  # take first 10%
     train_set = torch.utils.data.Subset(data, range(test_length, data_length))  # take the rest
 
     # Initialize train and test loaders
-    trainloader = DataLoader(train_set, batch_size=1, shuffle=True, num_workers=2)
+    trainloader = DataLoader(train_set, batch_size=32, shuffle=True)
+    testloader = DataLoader(test_set, batch_size=32, shuffle=True) #drop_last=True,num_workers=2
 
-    testloader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=2)
+    # Get pretrained model using torchvision.models as models library
+    model = models.densenet161(pretrained=True)
+    # Turn off training for their parameters
+    for param in model.parameters():
+        param.requires_grad = False
 
-    net = Net()
+    # Create new classifier for model using torch.nn as nn library
+    classifier_input = model.classifier.in_features
+    classifier = nn.Sequential( nn.Linear(classifier_input, 1024),
+                                nn.ReLU(),
+                                nn.Linear(1024, 512),
+                                nn.ReLU(),
+                                nn.Linear(512, NUM_LABELS),
+                                nn.LogSoftmax(dim=1))
 
-    # Define a Loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    # Replace default classifier with new classifier
+    model.classifier = classifier
 
-    # Train the network
-    for epoch in range(2):  # loop over the dataset multiple times
-        running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+    # Find the device available to use using torch library
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-            # zero the parameter gradients
+    # Move model to the device specified above
+    model.to(device)
+
+    # Set the error function using torch.nn as nn library
+    criterion = nn.NLLLoss()
+
+    # Set the optimizer function using torch.optim as optim library
+    optimizer = optim.Adam(model.classifier.parameters())
+
+    epochs = 10
+    for epoch in range(epochs):
+        train_loss = 0
+        val_loss = 0
+        accuracy = 0
+        
+        # Training the model
+        model.train()
+        counter = 0
+        for inputs, labels in trainloader:
+            # Move to device
+            inputs, labels = inputs.to(device), labels.to(device)
+            # Clear optimizers
             optimizer.zero_grad()
-
-            # forward + backward + optimize
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
+            # Forward pass
+            output = model.forward(inputs)
+            # Loss
+            loss = criterion(output, labels)
+            # Calculate gradients (backpropogation)
             loss.backward()
+            # Adjust parameters based on gradients
             optimizer.step()
+            # Add the loss to the training set's rnning loss
+            train_loss += loss.item()*inputs.size(0)
+            
+            # Print the progress of our training
+            counter += 1
+            print(counter, "/", len(trainloader))
+            
+        # Evaluating the model
+        model.eval()
+        counter = 0
+        # Tell torch not to calculate gradients
+        with torch.no_grad():
+            for inputs, labels in testloader:
+                # Move to device
+                inputs, labels = inputs.to(device), labels.to(device)
+                # Forward pass
+                output = model.forward(inputs)
+                # Calculate Loss
+                valloss = criterion(output, labels)
+                # Add loss to the validation set's running loss
+                val_loss += valloss.item()*inputs.size(0)
+                
+                # Since our model outputs a LogSoftmax, find the real 
+                # percentages by reversing the log function
+                output = torch.exp(output)
+                # Get the top class of the output
+                top_p, top_class = output.topk(1, dim=1)
+                # See how many of the classes were correct?
+                equals = top_class == labels.view(*top_class.shape)
+                # Calculate the mean (get the accuracy for this batch)
+                # and add it to the running accuracy for this epoch
+                accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
+                
+                # Print the progress of our evaluation
+                counter += 1
+                print(counter, "/", len(testloader))
+        
+        # Get the average loss for the entire epoch
+        train_loss = train_loss/len(trainloader.dataset)
+        valid_loss = val_loss/len(testloader.dataset)
+        # Print out the information
+        print('Accuracy: ', accuracy/len(testloader))
+        print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(epoch, train_loss, valid_loss))
 
-            # print statistics
-            running_loss += loss.item()
-            if i % 2000 == 1999:    # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 2000))
-                running_loss = 0.0
 
-    print('Finished Training')
-
-    # Save the model
-    PATH = './detection_net.pth'
-    torch.save(net.state_dict(), PATH)
+def main():
+    train_model()
 
 if __name__== "__main__":
     main()
