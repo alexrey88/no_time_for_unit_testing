@@ -67,6 +67,30 @@ export default class App extends React.Component {
     this.setState({ hasPermission: status === 'granted' });
   }
 
+  async sendImage() {
+    try {
+      let response = await fetch(
+        'url',
+      );
+      let responseJson = await response.json();
+      return responseJson.movies;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async sendCoordinates() {
+    try {
+      let response = await fetch(
+        'http://10.200.28.73:3000/lat/'+this.state.latitude.toString()+'/lng/'+this.state.longitude.toString(),
+      );
+      let responseJson = await response.json();
+      return responseJson;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   render() {
     var hasAccessToCamera = false
 
@@ -99,8 +123,14 @@ export default class App extends React.Component {
           <Button style={styles.buttonStyle}
             title="Take picture"
             onPress={() => {
-              Alert.alert('Picture taken')
+
               console.log(this.state.markerPos)
+              this.sendCoordinates()
+
+              
+
+
+
             }}
           />
           <Button style={styles.buttonStyle}
@@ -109,6 +139,7 @@ export default class App extends React.Component {
               // Alert.alert('Simple Button pressed')
               let canTakePicture = false
               this.setState({ canTakePicture });
+              this._getLocationAsync();
             }}
           />
         </View>
@@ -124,8 +155,8 @@ export default class App extends React.Component {
             longitudeDelta: 0.001
           }}
           region={{
-            latitude: this.state.latitude!=null ? this.state.latitude: 1,
-            longitude: this.state.longitude!=null ? this.state.longitude: 1,
+            latitude: this.state.latitude != null ? this.state.latitude : 1,
+            longitude: this.state.longitude != null ? this.state.longitude : 1,
             latitudeDelta: 0.001,
             longitudeDelta: 0.001
           }}
@@ -134,7 +165,7 @@ export default class App extends React.Component {
             // draggable
             // onDragEnd={(e) => this.setState({ markerPos: e.nativeEvent.coordinate })}
             coordinate={{
-              latitude: this.state.latitude!=null ? this.state.latitude : 1,
+              latitude: this.state.latitude != null ? this.state.latitude : 1,
               longitude: this.state.longitude != null ? this.state.longitude : 1
             }}
           />
@@ -149,7 +180,7 @@ export default class App extends React.Component {
               let canTakePicture = newCameraState
               this.setState({ canTakePicture });
             }}
-            
+
 
           />
           <Button style={styles.buttonStyle}
@@ -157,7 +188,7 @@ export default class App extends React.Component {
             onPress={() => {
               this._getLocationAsync();
             }}
-            
+
           />
         </View>
 
@@ -178,7 +209,7 @@ const styles = StyleSheet.create({
   },
   buttonStyle: {
     backgroundColor: '#ffffff'
-    
+
   },
   mapStyle: {
     width: Dimensions.get('window').width,
