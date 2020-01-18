@@ -13,15 +13,18 @@ export default class App extends React.Component {
   ;
 
   state = {
-    location: null,
+    location: 0,
     errorMessage: null,
     latitude: 1,
     longitude: 1,
     canTakePicture: true,
-    markerPos: null
+    markerPos: {
+      "latitude": 1,
+      "longitude": 1
+    }
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     if (Platform.OS === 'android' && !Constants.isDevice) {
       this.setState({
         errorMessage: 'Oops, this will not work on Sketch in an Android emulator. Try it on your device!',
@@ -40,10 +43,11 @@ export default class App extends React.Component {
     }
 
     let location = await Location.getCurrentPositionAsync({});
-    this.setState({ location });
     let latitude = location.coords.latitude
-    this.setState({ latitude })
     let longitude = location.coords.longitude
+
+    this.setState({ location })
+    this.setState({ latitude })
     this.setState({ longitude })
 
     let markerPos = {
@@ -92,14 +96,14 @@ export default class App extends React.Component {
           <Camera style={{ flex: 1 }} type={this.state.cameraType}>
 
           </Camera>
-          <Button
+          <Button style={styles.buttonStyle}
             title="Take picture"
             onPress={() => {
               Alert.alert('Picture taken')
               console.log(this.state.markerPos)
             }}
           />
-          <Button
+          <Button style={styles.buttonStyle}
             title="Cancel"
             onPress={() => {
               // Alert.alert('Simple Button pressed')
@@ -113,9 +117,15 @@ export default class App extends React.Component {
 
         <MapView
           style={!this.state.canTakePicture ? styles.mapStyle : styles.hidden}
+          initialRegion={{
+            latitude: 1,
+            longitude: 1,
+            latitudeDelta: 0.001,
+            longitudeDelta: 0.001
+          }}
           region={{
-            latitude: this.state.latitude,
-            longitude: this.state.longitude,
+            latitude: this.state.latitude!=null ? this.state.latitude: 1,
+            longitude: this.state.longitude!=null ? this.state.longitude: 1,
             latitudeDelta: 0.001,
             longitudeDelta: 0.001
           }}
@@ -124,13 +134,13 @@ export default class App extends React.Component {
             // draggable
             // onDragEnd={(e) => this.setState({ markerPos: e.nativeEvent.coordinate })}
             coordinate={{
-              latitude: this.state.latitude,
-              longitude: this.state.longitude,
+              latitude: this.state.latitude!=null ? this.state.latitude : 1,
+              longitude: this.state.longitude != null ? this.state.longitude : 1
             }}
           />
         </MapView>
-        <View style={!this.state.canTakePicture ? styles.button : styles.hidden}>
-          <Button
+        <View style={!this.state.canTakePicture ? styles.buttonContainer : styles.hidden}>
+          <Button style={styles.buttonStyle}
             title="Identify bin"
             onPress={() => {
               // Alert.alert('Simple Button pressed')
@@ -139,15 +149,15 @@ export default class App extends React.Component {
               let canTakePicture = newCameraState
               this.setState({ canTakePicture });
             }}
-            color="#ffffff"
+            
 
           />
-          <Button
+          <Button style={styles.buttonStyle}
             title="Show current location"
             onPress={() => {
               this._getLocationAsync();
             }}
-            color="#ffffff"
+            
           />
         </View>
 
@@ -163,12 +173,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  buttonContainer: {
+    width: Dimensions.get('window').width
+  },
   buttonStyle: {
-    // width: Dimensions.get('window').width
+    backgroundColor: '#ffffff'
+    
   },
   mapStyle: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height - 200,
+    // height: Dimensions.get('window').height - 200,
+    flex: 1
   },
   hidden: {
     width: 0,
@@ -176,7 +191,8 @@ const styles = StyleSheet.create({
   },
   camera: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height - 100
+    // height: Dimensions.get('window').height - 100
+    flex: 1
   }
 });
 
