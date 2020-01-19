@@ -6,7 +6,9 @@ import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import { Camera } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 
+let IP = 'http://10.200.28.73:3000/';
 var text = "";
 
 export default class App extends React.Component {
@@ -21,7 +23,9 @@ export default class App extends React.Component {
     markerPos: {
       "latitude": 1,
       "longitude": 1
-    }
+    },
+    photo: null,
+    type: Camera.Constants.Type.back
   };
 
   UNSAFE_componentWillMount() {
@@ -67,14 +71,54 @@ export default class App extends React.Component {
     this.setState({ hasPermission: status === 'granted' });
   }
 
+  async sendCoordinates() {
+    try {
+      let response = await fetch(
+        IP + 'lat/' + this.state.latitude.toString() + '/lng/' + this.state.longitude.toString(),
+      );
+      let responseJson = await response.json();
+      return responseJson;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async takePicture() {
+    if (this.camera) {
+      let photo = await this.camera.takePictureAsync();
+      console.log(photo);
+
+      const data = new FormData();
+      data.append('name', 'avatar');
+      data.append('fileData', {
+        uri: photo.uri,
+        type: 'image/jpeg',
+        name: 'image'
+      });
+      console.log(data)
+      const config = {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+        body: data,
+      };
+      fetch(IP + "upload", config)
+        .then((checkStatusAndGetJSONResponse) => {
+          console.log(JSON.stringify(checkStatusAndGetJSONResponse))
+        }).catch((err) => { console.log('oup') });
+    }
+  }
+
   render() {
     var hasAccessToCamera = false
 
     const { hasPermission } = this.state
     if (hasPermission === null) {
-      // return <View />;
+      return <View />;
     } else if (hasPermission === false) {
-      // return <Text>No access to camera</Text>;
+      return <Text>No access to camera</Text>;
     } else {
       hasAccessToCamera = true
     }
@@ -93,14 +137,24 @@ export default class App extends React.Component {
       <View style={styles.container}>
         <View style={this.state.canTakePicture ? styles.camera : styles.hidden}>
 
-          <Camera style={{ flex: 1 }} type={this.state.cameraType}>
-
+          <Camera
+            style={{ flex: 1 }}
+            type={this.state.cameraType}
+            ref={ref => {
+              this.camera = ref;
+            }}
+          >
           </Camera>
           <Button style={styles.buttonStyle}
             title="Take picture"
             onPress={() => {
-              Alert.alert('Picture taken')
+
               console.log(this.state.markerPos)
+              this.sendCoordinates()
+              this.takePicture()
+
+              Alert.alert('Ok')
+
             }}
           />
           <Button style={styles.buttonStyle}
@@ -109,6 +163,7 @@ export default class App extends React.Component {
               // Alert.alert('Simple Button pressed')
               let canTakePicture = false
               this.setState({ canTakePicture });
+              this._getLocationAsync();
             }}
           />
         </View>
@@ -124,8 +179,8 @@ export default class App extends React.Component {
             longitudeDelta: 0.001
           }}
           region={{
-            latitude: this.state.latitude!=null ? this.state.latitude: 1,
-            longitude: this.state.longitude!=null ? this.state.longitude: 1,
+            latitude: this.state.latitude != null ? this.state.latitude : 1,
+            longitude: this.state.longitude != null ? this.state.longitude : 1,
             latitudeDelta: 0.001,
             longitudeDelta: 0.001
           }}
@@ -134,14 +189,14 @@ export default class App extends React.Component {
             // draggable
             // onDragEnd={(e) => this.setState({ markerPos: e.nativeEvent.coordinate })}
             coordinate={{
-              latitude: this.state.latitude!=null ? this.state.latitude : 1,
+              latitude: this.state.latitude != null ? this.state.latitude : 1,
               longitude: this.state.longitude != null ? this.state.longitude : 1
             }}
           />
         </MapView>
         <View style={!this.state.canTakePicture ? styles.buttonContainer : styles.hidden}>
           <Button style={styles.buttonStyle}
-            title="Identify bin"
+            title="Identify Item"
             onPress={() => {
               // Alert.alert('Simple Button pressed')
               let currentCameraState = this.state.canTakePicture
@@ -149,15 +204,15 @@ export default class App extends React.Component {
               let canTakePicture = newCameraState
               this.setState({ canTakePicture });
             }}
-            
+
 
           />
           <Button style={styles.buttonStyle}
-            title="Show current location"
+            title="Current location"
             onPress={() => {
               this._getLocationAsync();
             }}
-            
+
           />
         </View>
 
@@ -178,7 +233,7 @@ const styles = StyleSheet.create({
   },
   buttonStyle: {
     backgroundColor: '#ffffff'
-    
+
   },
   mapStyle: {
     width: Dimensions.get('window').width,
@@ -195,4 +250,3 @@ const styles = StyleSheet.create({
     flex: 1
   }
 });
-
