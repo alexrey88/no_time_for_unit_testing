@@ -1,1 +1,2 @@
-open('test.txt', 'w') 
+#open('test.txt', 'w') 
+exit('trash')

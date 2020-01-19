@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import { Camera } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker';
 
 let IP = 'http://10.200.28.73:3000/';
 var text = "";
@@ -25,7 +25,9 @@ export default class App extends React.Component {
       "longitude": 1
     },
     photo: null,
-    type: Camera.Constants.Type.back
+    type: Camera.Constants.Type.back,
+    message: 'other',
+    markers: []
   };
 
   UNSAFE_componentWillMount() {
@@ -59,6 +61,8 @@ export default class App extends React.Component {
       "longitude": longitude
     }
     this.setState({ markerPos })
+
+    this.getDatabase()
   };
 
   state = {
@@ -83,9 +87,31 @@ export default class App extends React.Component {
     }
   }
 
+  setTypeOfItem(itemType) {
+    let message = itemType
+    this.setState({ message: message })
+    console.log(this.state.message)
+
+    if (message != "other") {
+      Alert.alert(message + 'added')
+    }
+  }
+
+  async getDatabase() {
+    let response = await fetch(IP + "getDatabase")
+    let responseJson = await response.json();
+    let listOfMarkers = responseJson.list//JSON.parse(responseJson)
+    console.log(listOfMarkers)
+
+    this.setState({ markers: listOfMarkers })
+
+  }
+
   async takePicture() {
     if (this.camera) {
       let photo = await this.camera.takePictureAsync();
+
+      Alert.alert('Loading...')
       console.log(photo);
 
       const data = new FormData();
@@ -104,10 +130,17 @@ export default class App extends React.Component {
         },
         body: data,
       };
-      fetch(IP + "upload", config)
-        .then((checkStatusAndGetJSONResponse) => {
-          console.log(JSON.stringify(checkStatusAndGetJSONResponse))
-        }).catch((err) => { console.log('oup') });
+
+      let response = await fetch(IP + "upload", config)
+      let responseJson = await response.json();
+      console.log(responseJson.data)
+      this.setTypeOfItem(responseJson.data)
+
+      // let response = await fetch(IP + "newEntry/lat/"+this.state.latitude.toString()+"/lng/"+this.state.longitude.toString(), config)
+      // let responseJson = await response.json();
+      // console.log(responseJson.data)
+      // this.setTypeOfItem(responseJson.data)
+
     }
   }
 
@@ -153,7 +186,7 @@ export default class App extends React.Component {
               this.sendCoordinates()
               this.takePicture()
 
-              Alert.alert('Ok')
+
 
             }}
           />
@@ -193,6 +226,19 @@ export default class App extends React.Component {
               longitude: this.state.longitude != null ? this.state.longitude : 1
             }}
           />
+
+
+          {this.state.markers && this.state.markers.map(marker => (
+            <MapView.Marker
+              coordinate={{
+                latitude: parseFloat(marker.lat),
+                longitude: parseFloat(marker.lng)
+              }}
+            />
+          ))}
+
+
+
         </MapView>
         <View style={!this.state.canTakePicture ? styles.buttonContainer : styles.hidden}>
           <Button style={styles.buttonStyle}
