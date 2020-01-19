@@ -100,7 +100,12 @@ def main():
     model.eval()
 
     # Process Image
-    image = process_image("./data/person.jpg")
+    import glob
+    import os
+
+    list_of_files = glob.glob('./nodeServer/uploads/*')
+    latest_file = max(list_of_files, key=os.path.getctime)
+    image = process_image("./nodeServer/uploads/"+latest_file)
 
     # Give image to model to predict output
     top_prob, top_class = model_predict(image, model)

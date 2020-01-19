@@ -136,9 +136,11 @@ app.post('/upload', upload.single('fileData'), (req, res, next) => {
         }
     });
 
+
     /* Calling python script */
     const spawn = require('child_process').spawn;
-    const ls = spawn('python', ['script.py', 'arg1', 'arg2']);
+    // const ls = spawn('python', ['script.py', 'arg1', 'arg2']);
+    const ls = spawn('python', ['../server.py', 'arg1', 'arg2']);
 
     // other, trash, bench, picnic
     var type = 'other';
