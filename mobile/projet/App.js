@@ -8,7 +8,8 @@ import * as Permissions from 'expo-permissions';
 import { Camera } from 'expo-camera';
 // import * as ImagePicker from 'expo-image-picker';
 
-let IP = 'http://10.200.28.73:3000/';
+// let IP = 'http://10.200.28.73:3000/';
+let IP = 'http://10.200.5.137:3000/'
 var text = "";
 
 export default class App extends React.Component {
