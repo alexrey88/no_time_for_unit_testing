@@ -106,7 +106,7 @@ export default class App extends React.Component {
       };
       fetch(IP + "upload", config)
         .then((checkStatusAndGetJSONResponse) => {
-          console.log('Done')
+          console.log(JSON.stringify(checkStatusAndGetJSONResponse))
         }).catch((err) => { console.log('oup') });
     }
   }
@@ -153,7 +153,7 @@ export default class App extends React.Component {
               this.sendCoordinates()
               this.takePicture()
 
-              Alert.alert('Done')
+              Alert.alert('Ok')
 
             }}
           />
@@ -196,7 +196,7 @@ export default class App extends React.Component {
         </MapView>
         <View style={!this.state.canTakePicture ? styles.buttonContainer : styles.hidden}>
           <Button style={styles.buttonStyle}
-            title="Identify bin"
+            title="Identify Item"
             onPress={() => {
               // Alert.alert('Simple Button pressed')
               let currentCameraState = this.state.canTakePicture
@@ -208,7 +208,7 @@ export default class App extends React.Component {
 
           />
           <Button style={styles.buttonStyle}
-            title="Show current location"
+            title="Current location"
             onPress={() => {
               this._getLocationAsync();
             }}

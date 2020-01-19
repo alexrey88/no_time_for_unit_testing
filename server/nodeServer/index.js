@@ -1,6 +1,6 @@
 var fs = require('fs');
 var multer = require('multer');
-var upload = multer({ dest: 'uploads/' }); //setting the default folder for multer
+var upload = multer({ dest: 'uploads/' });
 
 const express = require('express')
 const app = express()
@@ -22,7 +22,7 @@ app.get('/img/:img', function (req, res) {
 })
 
 app.post('/upload', upload.single('fileData'), (req, res, next) => {
-    res.send('Thanks')
+    
     console.log('Upload called')
     fs.readFile(req.file.path, (err, contents) => {
         if (err) {
@@ -31,6 +31,8 @@ app.post('/upload', upload.single('fileData'), (req, res, next) => {
             console.log('File contents ', contents);
         }
     });
+
+    res.send('Thanks')
 });
 
 app.listen(port, () => console.log(`Server listening on port ${port}...`))
