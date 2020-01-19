@@ -6,7 +6,9 @@ import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import { Camera } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 
+let IP = 'http://10.200.28.73:3000/';
 var text = "";
 
 export default class App extends React.Component {
@@ -21,7 +23,9 @@ export default class App extends React.Component {
     markerPos: {
       "latitude": 1,
       "longitude": 1
-    }
+    },
+    photo: null,
+    type: Camera.Constants.Type.back
   };
 
   UNSAFE_componentWillMount() {
@@ -67,22 +71,10 @@ export default class App extends React.Component {
     this.setState({ hasPermission: status === 'granted' });
   }
 
-  async sendImage() {
-    try {
-      let response = await fetch(
-        'url',
-      );
-      let responseJson = await response.json();
-      return responseJson.movies;
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
   async sendCoordinates() {
     try {
       let response = await fetch(
-        'http://10.200.28.73:3000/lat/'+this.state.latitude.toString()+'/lng/'+this.state.longitude.toString(),
+        IP + 'lat/' + this.state.latitude.toString() + '/lng/' + this.state.longitude.toString(),
       );
       let responseJson = await response.json();
       return responseJson;
@@ -91,14 +83,42 @@ export default class App extends React.Component {
     }
   }
 
+  async takePicture() {
+    if (this.camera) {
+      let photo = await this.camera.takePictureAsync();
+      console.log(photo);
+
+      const data = new FormData();
+      data.append('name', 'avatar');
+      data.append('fileData', {
+        uri: photo.uri,
+        type: 'image/jpeg',
+        name: 'image'
+      });
+      console.log(data)
+      const config = {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+        body: data,
+      };
+      fetch(IP + "upload", config)
+        .then((checkStatusAndGetJSONResponse) => {
+          console.log('Done')
+        }).catch((err) => { console.log('oup') });
+    }
+  }
+
   render() {
     var hasAccessToCamera = false
 
     const { hasPermission } = this.state
     if (hasPermission === null) {
-      // return <View />;
+      return <View />;
     } else if (hasPermission === false) {
-      // return <Text>No access to camera</Text>;
+      return <Text>No access to camera</Text>;
     } else {
       hasAccessToCamera = true
     }
@@ -117,8 +137,13 @@ export default class App extends React.Component {
       <View style={styles.container}>
         <View style={this.state.canTakePicture ? styles.camera : styles.hidden}>
 
-          <Camera style={{ flex: 1 }} type={this.state.cameraType}>
-
+          <Camera
+            style={{ flex: 1 }}
+            type={this.state.cameraType}
+            ref={ref => {
+              this.camera = ref;
+            }}
+          >
           </Camera>
           <Button style={styles.buttonStyle}
             title="Take picture"
@@ -126,10 +151,9 @@ export default class App extends React.Component {
 
               console.log(this.state.markerPos)
               this.sendCoordinates()
+              this.takePicture()
 
-              
-
-
+              Alert.alert('Done')
 
             }}
           />
@@ -226,4 +250,3 @@ const styles = StyleSheet.create({
     flex: 1
   }
 });
-
